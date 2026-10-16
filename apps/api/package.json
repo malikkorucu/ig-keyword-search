@@ -1,0 +1,57 @@
+{
+  "name": "@igw/api",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "dev": "nest start --watch",
+    "dev:worker": "nest start --watch --entryFile worker",
+    "start": "node dist/main.js",
+    "start:worker": "node dist/worker.js",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "typeorm": "typeorm-ts-node-commonjs -d src/infrastructure/persistence/data-source.ts",
+    "migration:run": "pnpm typeorm migration:run",
+    "migration:revert": "pnpm typeorm migration:revert",
+    "migration:generate": "pnpm typeorm migration:generate",
+    "migration:run:prod": "typeorm -d dist/infrastructure/persistence/data-source.js migration:run"
+  },
+  "dependencies": {
+    "@igw/shared": "workspace:*",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/schedule": "^6.0.1",
+    "@nestjs/typeorm": "^11.0.3",
+    "bullmq": "^5.61.0",
+    "connect-redis": "^9.0.0",
+    "cron": "^4.3.3",
+    "dotenv": "^17.2.3",
+    "express-session": "^1.18.2",
+    "ioredis": "^5.8.2",
+    "pg": "^8.16.3",
+    "redis": "^5.8.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sharp": "^0.34.4",
+    "tesseract.js": "^7.0.0",
+    "typeorm": "^1.1.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/testing": "^11.1.6",
+    "@types/express": "^5.0.3",
+    "@types/express-session": "^1.18.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.18.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  }
+}

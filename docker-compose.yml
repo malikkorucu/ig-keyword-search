@@ -1,0 +1,81 @@
+# Production stack for Coolify (Docker Compose build pack) or plain `docker compose`.
+# Postgres and Redis are external: pass DATABASE_URL / REDIS_URL (e.g. Coolify-managed resources).
+#
+#   api     NestJS HTTP API + schedulers, runs DB migrations on start
+#   worker  BullMQ poll + OCR workers (same image, different command)
+#   web     nginx: static panel + /api reverse proxy → the only service you need to reach
+
+services:
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      REDIS_URL: ${REDIS_URL}
+      IG_USER_ID: ${IG_USER_ID}
+      IG_ACCESS_TOKEN: ${IG_ACCESS_TOKEN}
+      FB_APP_ID: ${FB_APP_ID}
+      FB_APP_SECRET: ${FB_APP_SECRET}
+      GRAPH_API_VERSION: ${GRAPH_API_VERSION:-v21.0}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      PANEL_PASSWORD: ${PANEL_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PORT: 3000
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      target: api
+    command: ['node', 'dist/worker.js']
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      REDIS_URL: ${REDIS_URL}
+      IG_USER_ID: ${IG_USER_ID}
+      IG_ACCESS_TOKEN: ${IG_ACCESS_TOKEN}
+      FB_APP_ID: ${FB_APP_ID}
+      FB_APP_SECRET: ${FB_APP_SECRET}
+      GRAPH_API_VERSION: ${GRAPH_API_VERSION:-v21.0}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      PANEL_PASSWORD: ${PANEL_PASSWORD}
+      OCR_CONCURRENCY: ${OCR_CONCURRENCY:-1}
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      API_UPSTREAM: http://api:3000
+    # Bind to the server's Tailscale IP (WEB_BIND=100.x.y.z) so the panel is reachable only over Tailscale.
+    # Default 127.0.0.1 keeps it off the public internet until you set it.
+    ports:
+      - '${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

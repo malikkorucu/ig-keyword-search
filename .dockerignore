@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!.env.example
+**/.tesseract-cache
+**/*.log
+.git
+.DS_Store
+docker-compose*.yml
