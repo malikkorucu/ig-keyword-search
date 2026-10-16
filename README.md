@@ -124,34 +124,42 @@ Tek `Dockerfile`, iki target: `api` (worker aynı imajı `node dist/worker.js` i
 | `worker` | Poll + OCR worker'ları                   | Dışarı açık değil                      |
 | `web`    | nginx: panel + `/api` proxy              | `${WEB_BIND}:${WEB_PORT}` → 80         |
 
-### Coolify'a deploy
+### Coolify'a deploy (imajlar GitHub Actions'ta build edilir)
 
-1. **Repo:** Projeyi (private) bir GitHub/GitLab repo'suna push et. `.env`, `.env.infra` gitignored; secret'lar repo'ya girmez.
-2. **Veritabanları** (sunucuda zaten varsa bu adımı atla, mevcutlarda ayrı DB / Redis DB numarası kullan):
-   Coolify → Project → **+ New → Database → PostgreSQL** (image `postgres:17-alpine`) ve **Redis** (`redis:7-alpine`). Her birinin sayfasındaki **internal URL**'i kopyala.
-3. **Uygulama:** **+ New → Private Repository** → repo'yu seç → **Build Pack: Docker Compose**, compose dosyası `/docker-compose.yml`.
-4. Uygulamanın **Settings**'inde **Connect To Predefined Network**'ü aç; böylece compose servisleri Coolify'ın Postgres/Redis'ine internal hostname ile ulaşır.
-5. **Environment Variables** (Coolify compose'daki değişkenleri listeler; secret olanları "secret" işaretle):
+Sunucuda build yapılmaz. `main`'e her push'ta `.github/workflows/release.yml`: test + lint → `linux/amd64` imajları build → `ghcr.io/malikkorucu/ig-keyword-watch-{api,web}` (`latest` + kısa SHA tag'i) → (opsiyonel) Coolify deploy webhook'u. Coolify `docker-compose.prod.yml` ile sadece hazır imajları çeker.
 
-   | Değişken                        | Değer                                                                              |
-   | ------------------------------- | ---------------------------------------------------------------------------------- |
-   | `DATABASE_URL`                  | Postgres internal URL (ör. `postgres://postgres:…@<uuid>:5432/postgres`)           |
-   | `REDIS_URL`                     | Redis internal URL (ör. `redis://default:…@<uuid>:6379/0`)                         |
-   | `IG_USER_ID`, `IG_ACCESS_TOKEN` | Meta bilgileri (token sadece ilk açılışta DB'ye yazılır, sonra otomatik yenilenir) |
-   | `FB_APP_ID`, `FB_APP_SECRET`    | Meta app                                                                           |
-   | `TELEGRAM_BOT_TOKEN`            | @BotFather token'ı (opsiyonel)                                                     |
-   | `PANEL_PASSWORD`                | Panel parolası (min 6 karakter)                                                    |
-   | `WEB_BIND`                      | Sunucunun Tailscale IP'si (`tailscale ip -4`, ör. `100.101.102.103`)               |
-   | `WEB_PORT`                      | Panel portu, varsayılan `8080`                                                     |
-   | `COOKIE_SECURE`                 | Sadece panel HTTPS üzerinden açılıyorsa `true`                                     |
+1. **Sunucuda GHCR girişi (bir kez):** İmajlar private. GitHub → Settings → Developer settings → Personal access tokens (classic) → sadece `read:packages` scope'lu bir token oluştur, sunucuda:
+   ```bash
+   echo <TOKEN> | docker login ghcr.io -u malikkorucu --password-stdin
+   ```
+2. **Veritabanları** (sunucuda zaten varsa atla): Coolify → **+ New → Database → PostgreSQL** ve **Redis**; internal URL'leri kopyala.
+3. **Uygulama:** **+ New → Private Repository** → bu repo → **Build Pack: Docker Compose**, **Docker Compose Location: `/docker-compose.prod.yml`**, Base Directory `/`.
+4. **Settings:** **Connect To Predefined Network**'ü aç. **Auto Deploy**'u kapat (push anında imajlar henüz hazır değildir; deploy'u workflow tetikler).
+5. **Environment Variables:**
 
-6. **Erişim** — iki seçenek:
-   - **Tailscale (önerilen):** `web` servisine domain verme. `WEB_BIND`'i Tailscale IP'si yap; panel `http://<tailscale-ip>:8080` (veya MagicDNS adı) üzerinden açılır, public IP'den açılmaz.
-   - **Domain + HTTPS:** Coolify'da `web` servisine domain ata (Traefik sertifikayı alır), `COOKIE_SECURE=true` ver. `WEB_BIND` varsayılan `127.0.0.1` kalabilir.
-7. **Deploy**'a bas. İlk açılışta `api` migration'ları ve seed'i çalıştırır, `worker` ve `web` api healthy olduktan sonra başlar. Logları Coolify'dan izleyebilirsin (`Poll success: …`).
-8. Panelde hesapları, anahtar kelimeleri ve **Bildirimler**'den Telegram kanalını ekle (prod DB boş başlar).
+   | Değişken                        | Değer                                                                                                  |
+   | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+   | `DATABASE_URL`                  | Postgres internal URL                                                                                  |
+   | `REDIS_URL`                     | Redis internal URL                                                                                     |
+   | `IG_USER_ID`, `IG_ACCESS_TOKEN` | Meta bilgileri (token sadece ilk açılışta DB'ye yazılır, sonra otomatik yenilenir)                     |
+   | `FB_APP_ID`, `FB_APP_SECRET`    | Meta app                                                                                               |
+   | `TELEGRAM_BOT_TOKEN`            | @BotFather token'ı (opsiyonel)                                                                         |
+   | `PANEL_PASSWORD`                | Panel parolası (min 6 karakter)                                                                        |
+   | `WEB_BIND`                      | Sunucunun Tailscale IP'si (`tailscale ip -4`)                                                          |
+   | `WEB_PORT`                      | Panel portu, varsayılan `8080`                                                                         |
+   | `COOKIE_SECURE`                 | Sadece panel HTTPS üzerinden açılıyorsa `true`                                                         |
+   | `IMAGE_TAG`                     | Opsiyonel: belirli bir sürüme sabitlemek/geri dönmek için kısa SHA (ör. `sha-d64059a`); boşsa `latest` |
 
-Güncelleme: repo'ya push → Coolify'da **Redeploy** (ya da Auto Deploy / webhook'u aç). Migration'lar her açılışta otomatik uygulanır.
+6. **Erişim:** Tailscale için `web`'e domain verme, `WEB_BIND`'i Tailscale IP'si yap → `http://<tailscale-ip>:8080`. Domain + HTTPS istersen `web`'e domain ata ve `COOKIE_SECURE=true` ver.
+7. **Deploy**'a bas. `api` migration + seed'i çalıştırır, `worker` ve `web` api healthy olunca başlar.
+8. **Otomatik deploy (opsiyonel):** Coolify'da kaynağın **Webhooks** sekmesindeki _Deploy Webhook_ URL'ini ve **Keys & Tokens → API Tokens**'tan _deploy_ yetkili bir token'ı GitHub repo secret'ı olarak ekle:
+   ```bash
+   gh secret set COOLIFY_WEBHOOK   # deploy webhook URL'i
+   gh secret set COOLIFY_TOKEN     # Coolify API token'ı
+   ```
+   Bundan sonra push → test → imaj → Coolify deploy tamamen otomatik.
+
+Geri dönmek için: `IMAGE_TAG`'i önceki çalışan SHA tag'ine ayarla ve redeploy et.
 
 ### Coolify olmadan
 
