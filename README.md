@@ -128,12 +128,9 @@ Tek `Dockerfile`, iki target: `api` (worker aynı imajı `node dist/worker.js` i
 
 Sunucuda build yapılmaz. `main`'e her push'ta `.github/workflows/release.yml`: test + lint → `linux/amd64` imajları build → `ghcr.io/malikkorucu/ig-keyword-watch-{api,web}` (`latest` + kısa SHA tag'i) → (opsiyonel) Coolify deploy webhook'u. Coolify `docker-compose.prod.yml` ile sadece hazır imajları çeker.
 
-1. **Sunucuda GHCR girişi (bir kez):** İmajlar private. GitHub → Settings → Developer settings → Personal access tokens (classic) → sadece `read:packages` scope'lu bir token oluştur, sunucuda:
-   ```bash
-   echo <TOKEN> | docker login ghcr.io -u malikkorucu --password-stdin
-   ```
+1. **İmajlar public:** repo ve GHCR paketleri public olduğu için sunucuda `docker login` gerekmez. (Paketleri private'a çevirirsen sunucuda `read:packages` yetkili bir token ile `docker login ghcr.io -u malikkorucu` yap.)
 2. **Veritabanları** (sunucuda zaten varsa atla): Coolify → **+ New → Database → PostgreSQL** ve **Redis**; internal URL'leri kopyala.
-3. **Uygulama:** **+ New → Private Repository** → bu repo → **Build Pack: Docker Compose**, **Docker Compose Location: `/docker-compose.prod.yml`**, Base Directory `/`.
+3. **Uygulama:** **+ New → Public Repository** → `https://github.com/malikkorucu/ig-keyword-search` → **Build Pack: Docker Compose**, **Docker Compose Location: `/docker-compose.prod.yml`**, Base Directory `/`.
 4. **Settings:** **Connect To Predefined Network**'ü aç. **Auto Deploy**'u kapat (push anında imajlar henüz hazır değildir; deploy'u workflow tetikler).
 5. **Environment Variables:**
 
