@@ -11,11 +11,21 @@ server {
   root /usr/share/nginx/html;
   server_tokens off;
 
+  # Behind Coolify's Traefik (or any proxy on a private Docker network): take the real client IP
+  # from X-Forwarded-For, trusting only private-range hops, so per-IP login throttling works.
+  set_real_ip_from 10.0.0.0/8;
+  set_real_ip_from 172.16.0.0/12;
+  set_real_ip_from 192.168.0.0/16;
+  set_real_ip_from 127.0.0.1;
+  real_ip_header X-Forwarded-For;
+  real_ip_recursive on;
+
   location /api/ {
     proxy_pass ${API_UPSTREAM};
     proxy_http_version 1.1;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    # Already resolved to the real client above; the API trusts exactly one hop (this nginx).
+    proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto $forwarded_proto;
     proxy_read_timeout 60s;
   }
