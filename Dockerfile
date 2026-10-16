@@ -15,10 +15,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 COPY apps/web apps/web
-RUN pnpm --filter @igw/shared build \
- && pnpm --filter @igw/api build \
- && pnpm --filter @igw/web build \
- && pnpm --filter @igw/api deploy --prod /out/api
+# Separate steps so a failure points at the exact package in the build log.
+RUN pnpm --filter @igw/shared build
+RUN pnpm --filter @igw/api build
+RUN pnpm --filter @igw/web build
+RUN pnpm --filter @igw/api deploy --prod /out/api
 
 # ---------- api / worker ----------
 FROM node:22-bookworm-slim AS api
