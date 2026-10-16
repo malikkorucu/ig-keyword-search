@@ -143,11 +143,11 @@ Sunucuda build yapılmaz. `main`'e her push'ta `.github/workflows/release.yml`: 
    | `TELEGRAM_BOT_TOKEN`            | @BotFather token'ı (opsiyonel)                                                                         |
    | `PANEL_PASSWORD`                | Panel parolası (min 6 karakter)                                                                        |
    | `WEB_BIND`                      | Sunucunun Tailscale IP'si (`tailscale ip -4`)                                                          |
-   | `WEB_PORT`                      | Panel portu, varsayılan `8080`                                                                         |
+   | `WEB_PORT`                      | Panel portu, varsayılan `18473` (8080 genelde Traefik'te dolu)                                         |
    | `COOKIE_SECURE`                 | Sadece panel HTTPS üzerinden açılıyorsa `true`                                                         |
    | `IMAGE_TAG`                     | Opsiyonel: belirli bir sürüme sabitlemek/geri dönmek için kısa SHA (ör. `sha-d64059a`); boşsa `latest` |
 
-6. **Erişim:** Tailscale için `web`'e domain verme, `WEB_BIND`'i Tailscale IP'si yap → `http://<tailscale-ip>:8080`. Domain + HTTPS istersen `web`'e domain ata ve `COOKIE_SECURE=true` ver.
+6. **Erişim:** Tailscale için `web`'e domain verme, `WEB_BIND`'i Tailscale IP'si yap → `http://<tailscale-ip>:18473`. Domain + HTTPS istersen `web`'e domain ata ve `COOKIE_SECURE=true` ver.
 7. **Deploy**'a bas. `api` migration + seed'i çalıştırır, `worker` ve `web` api healthy olunca başlar.
 8. **Otomatik deploy (opsiyonel):** Coolify'da kaynağın **Webhooks** sekmesindeki _Deploy Webhook_ URL'ini ve **Keys & Tokens → API Tokens**'tan _deploy_ yetkili bir token'ı GitHub repo secret'ı olarak ekle:
    ```bash
